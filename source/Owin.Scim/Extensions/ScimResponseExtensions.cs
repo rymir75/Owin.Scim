@@ -1,4 +1,7 @@
-﻿namespace Owin.Scim.Extensions
+﻿using System.Net.Http.Formatting;
+using System.Net.Http.Headers;
+
+namespace Owin.Scim.Extensions
 {
     using System;
     using System.Net;
@@ -70,14 +73,14 @@
             }
         }
 
-        private static Boolean IsBuiltInDataResponse<T>(IScimResponse<T> originalResponse)
+        private static bool IsBuiltInDataResponse<T>(IScimResponse<T> originalResponse)
         {
             var typeInfo = originalResponse.GetType().GetTypeInfo();
             return (originalResponse is ScimDataResponse<T>) ||
                    (typeInfo.IsGenericType && typeof(ScimDataResponse<>).GetTypeInfo().IsAssignableFrom(typeInfo.GetGenericTypeDefinition().GetTypeInfo()));
         }
 
-        private static Boolean IsBuiltInErrorResponse<T>(IScimResponse<T> originalResponse)
+        private static bool IsBuiltInErrorResponse<T>(IScimResponse<T> originalResponse)
         {
             var typeInfo = originalResponse.GetType().GetTypeInfo();
             return (originalResponse is ScimErrorResponse<T>) ||
@@ -99,45 +102,15 @@
             HttpRequestMessage httpRequestMessage,
             HttpStatusCode statusCode = HttpStatusCode.OK)
         {
-            if (scimResponse == null)
-            {
-                throw new ArgumentNullException("scimResponse");
-            }
-
-            if (httpRequestMessage == null)
-            {
-                throw new ArgumentNullException("httpRequestMessage");
-            }
-
-            var responseStatusCode = statusCode;
-            if (scimResponse.IsLeft)
-            {
-                responseStatusCode = GetStatusCode(scimResponse.GetLeft());
-            }
-
-            var response = ShouldSetResponseContent(httpRequestMessage, responseStatusCode)
-                ? httpRequestMessage.CreateResponse(responseStatusCode, scimResponse.GetContent())
-                : httpRequestMessage.CreateResponse(responseStatusCode);
-
-            return response;
+            return scimResponse.ToHttpResponseMessage(httpRequestMessage, null, statusCode);
         }
 
-        /// <summary>
-        /// Invokes the specified <paramref name="responseBuilder" /> action if <paramref name="scimResponse" /> does not contain an error - returning the configured <see cref="HttpResponseMessage" />.
-        /// If <paramref name="scimResponse" /> contains errors, the returned response with contain the error content and will attempt to parse the <see cref="Error.Code" /> as an
-        /// <see cref="HttpStatusCode" /> and assign it to the response message.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="scimResponse">The <see cref="IScimResponse{t}" /> used to build the <see cref="HttpResponseMessage" />.</param>
-        /// <param name="httpRequestMessage">The active <see cref="HttpRequestMessage" />.</param>
-        /// <param name="responseBuilder">The response builder method to invoke when no errors exist.</param>
-        /// <param name="setResponseContent">Determines whether to set the <param name="scimResponse.Data"></param> as the response content.</param>
-        /// <returns>HttpResponseMessage instance.</returns>
-        public static HttpResponseMessage ToHttpResponseMessage<T>(
-            this IScimResponse<T> scimResponse,
+        private static HttpResponseMessage ToHttpResponseMessage<T>(
+            this IScimResponse<T> scimResponse, 
             HttpRequestMessage httpRequestMessage,
             Action<T, HttpResponseMessage> responseBuilder,
-            Boolean setResponseContent = true)
+            HttpStatusCode statusCode = HttpStatusCode.OK,
+            bool setResponseContent = true)
         {
             if (scimResponse == null)
             {
@@ -149,15 +122,35 @@
                 throw new ArgumentNullException("httpRequestMessage");
             }
 
-            var responseStatusCode = HttpStatusCode.OK;
-            if (scimResponse.IsLeft)
-            {
-                responseStatusCode = GetStatusCode(scimResponse.GetLeft());
-            }
+            HttpResponseMessage response;
+            HttpStatusCode responseStatusCode = scimResponse.IsLeft
+                ? GetStatusCode(scimResponse.GetLeft())
+                : statusCode;
+            bool shouldSetResponseContent = setResponseContent && ShouldSetResponseContent(httpRequestMessage, responseStatusCode);
 
-            var response = setResponseContent && ShouldSetResponseContent(httpRequestMessage, responseStatusCode)
-                ? httpRequestMessage.CreateResponse(responseStatusCode, scimResponse.GetContent())
-                : httpRequestMessage.CreateResponse(responseStatusCode);
+            if (shouldSetResponseContent)
+            {
+                /*
+                if (httpRequestMessage.Headers.Accept.Count == 0)
+                {
+                    MediaTypeFormatter mediaTypeFormatter = httpRequestMessage.GetConfiguration().Formatters.JsonFormatter;
+                    MediaTypeHeaderValue mediaType = new MediaTypeHeaderValue("application/scim+json") { CharSet = "utf-8" };
+                    response = scimResponse.IsLeft
+                        ? httpRequestMessage.CreateResponse(responseStatusCode, scimResponse.GetLeft(), mediaTypeFormatter, mediaType)
+                        : httpRequestMessage.CreateResponse(responseStatusCode, scimResponse.GetRight(), mediaTypeFormatter, mediaType);
+                }
+                else
+                */
+                {
+                    response = scimResponse.IsLeft 
+                        ? httpRequestMessage.CreateResponse(responseStatusCode, scimResponse.GetLeft()) 
+                        : httpRequestMessage.CreateResponse(responseStatusCode, scimResponse.GetRight());
+                }
+            }
+            else
+            {
+                response = httpRequestMessage.CreateResponse(responseStatusCode);
+            }
 
             if (scimResponse.IsRight && responseBuilder != null)
             {
@@ -167,9 +160,29 @@
             return response;
         }
 
-        private static Object GetContent<T>(this IScimResponse<T> response)
+        /// <summary>
+        /// Invokes the specified <paramref name="responseBuilder" /> action if <paramref name="scimResponse" /> does not contain an error - returning the configured <see cref="HttpResponseMessage" />.
+        /// If <paramref name="scimResponse" /> contains errors, the returned response with contain the error content and will attempt to parse the <see cref="ScimError.Status" /> as an
+        /// <see cref="HttpStatusCode" /> and assign it to the response message.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="scimResponse">The <see cref="IScimResponse{T}" /> used to build the <see cref="HttpResponseMessage" />.</param>
+        /// <param name="httpRequestMessage">The active <see cref="HttpRequestMessage" />.</param>
+        /// <param name="responseBuilder">The response builder method to invoke when no errors exist.</param>
+        /// <param name="setResponseContent">Determines whether to set the <see ref="scimResponse.Data" /> as the response content.</param>
+        /// <returns>HttpResponseMessage instance.</returns>
+        public static HttpResponseMessage ToHttpResponseMessage<T>(
+            this IScimResponse<T> scimResponse,
+            HttpRequestMessage httpRequestMessage,
+            Action<T, HttpResponseMessage> responseBuilder,
+            bool setResponseContent = true)
         {
-            return response.IsLeft ? (Object)response.GetLeft() : (Object)response.GetRight();
+            return scimResponse.ToHttpResponseMessage(httpRequestMessage, responseBuilder, HttpStatusCode.OK, setResponseContent);
+        }
+
+        private static object GetContent<T>(this IScimResponse<T> response)
+        {
+            return response.IsLeft ? (object)response.GetLeft() : response.GetRight();
         }
 
         private static HttpStatusCode GetStatusCode(ScimError error)
@@ -179,7 +192,7 @@
             return HttpStatusCode.BadRequest;
         }
 
-        private static Boolean ShouldSetResponseContent(HttpRequestMessage httpRequestMessage, HttpStatusCode responseStatusCode)
+        private static bool ShouldSetResponseContent(HttpRequestMessage httpRequestMessage, HttpStatusCode responseStatusCode)
         {
             return httpRequestMessage.Method != HttpMethod.Head &&
                    responseStatusCode != HttpStatusCode.NoContent &&

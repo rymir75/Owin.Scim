@@ -1,4 +1,6 @@
-﻿namespace Owin.Scim.Querying
+﻿using System.Net.Http.Formatting;
+
+namespace Owin.Scim.Querying
 {
     using System;
     using System.Net.Http;
@@ -30,7 +32,7 @@
             if (actionContext.Request.Method == HttpMethod.Get)
                 queryOptions = actionContext.Request.GetOwinContext().Request.Query.GetScimQueryOptions(_ServerConfiguration);
             else if (actionContext.Request.Method == HttpMethod.Post)
-                queryOptions = await actionContext.Request.Content.ReadAsAsync<ScimQueryOptions>(cancellationToken);
+                queryOptions = await actionContext.Request.Content.ReadAsAsync<ScimQueryOptions>(_ServerConfiguration.HttpConfiguration.Formatters, cancellationToken);
             else
                 throw new InvalidOperationException("You can only bind ScimQueryOptions on GET or POST query endpoints.");
 

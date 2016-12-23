@@ -26,5 +26,24 @@
 
             return new AwaitResult<T>(responseTask);
         }
+
+        public static AwaitResult AwaitResponse(this Task responseTask)
+        {
+            try
+            {
+                responseTask.Wait(TimeSpan.FromHours(1)); // Debugging
+            }
+            catch (AggregateException ex)
+            {
+                if (ex.InnerExceptions.Count == 1)
+                {
+                    throw ex.InnerExceptions.First();
+                }
+
+                throw;
+            }
+
+            return new AwaitResult(responseTask);
+        }
     }
 }

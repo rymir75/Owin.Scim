@@ -18,4 +18,19 @@ namespace Owin.Scim.Tests.Integration.Querying.Projection
                         "userName"
                     });
     }
+
+    public class with_some_attributes : when_post_quering
+    {
+        Establish context = () => Attributes = new List<string> { "userName,externalId" };
+
+        It should_return_requested_attributes_and_returned_always =
+            () =>
+                JsonResponse.Keys.ShouldContainOnly(
+                    new List<string>
+                    {
+                        "id",
+                        "userName",
+                        "externalId"
+                    });
+    }
 }
