@@ -67,7 +67,7 @@ namespace Owin.Scim.Patching.Converters
 
                 return container;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 throw new ScimPatchException(
                     ScimErrorType.InvalidSyntax, 

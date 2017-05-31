@@ -1,4 +1,6 @@
-﻿namespace ConsoleHost.Kernel
+﻿using Nito.AsyncEx;
+
+namespace ConsoleHost.Kernel
 {
     using System;
     using System.Collections.Concurrent;
@@ -18,41 +20,43 @@
             _Users = new ConcurrentDictionary<string, KernelUser>();
         }
 
-        public async Task<KernelUser> CreateUser(KernelUser user)
+        public Task<KernelUser> CreateUser(KernelUser user)
         {
             user.Id = Guid.NewGuid().ToString("N");
 
             _Users.TryAdd(user.Id, user);
 
-            return user;
+            return Task.FromResult(user);
         }
 
-        public async Task<KernelUser> GetUser(string userId)
+        public Task<KernelUser> GetUser(string userId)
         {
             // this should really return a deep-clone of the db record so it accurate represents in-memory
             // and domain code can't mutate the in-memory db record 
-            return !_Users.ContainsKey(userId)
+            return Task.FromResult(!_Users.ContainsKey(userId)
                 ? null
-                : _Users[userId];
+                : _Users[userId]);
         }
 
-        public async Task<KernelUser> UpdateUser(KernelUser user)
+        public Task<KernelUser> UpdateUser(KernelUser user)
         {
             if (!_Users.ContainsKey(user.Id))
-                return null;
+                return Task.FromResult<KernelUser>(null);
 
             _Users[user.Id] = user;
 
-            return user;
+            return Task.FromResult(user);
         }
 
-        public async Task DeleteUser(string userId)
+        public Task DeleteUser(string userId)
         {
-            if (!_Users.ContainsKey(userId))
-                return;
+            if (_Users.ContainsKey(userId))
+            {
+                KernelUser userRecord;
+                _Users.TryRemove(userId, out userRecord);
+            }
 
-            KernelUser userRecord;
-            _Users.TryRemove(userId, out userRecord);
+            return TaskConstants.Completed;
         }
 
         public Task<bool> IsUserNameAvailable(string userName)

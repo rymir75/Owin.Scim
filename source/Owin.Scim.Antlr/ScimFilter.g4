@@ -58,4 +58,4 @@ ESCAPED_QUOTE : '\\"';
 
 VALUE : '"'(ESCAPED_QUOTE | ~'"')*'"' | 'true' | 'false' | 'null' | DIGIT+('.'DIGIT+)?;
 
-EXCLUDE : [\b | \t | \r | \n]+ -> skip;
+EXCLUDE : [\b\t\r\n]+ -> skip;

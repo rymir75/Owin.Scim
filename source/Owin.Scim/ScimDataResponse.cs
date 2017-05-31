@@ -28,7 +28,7 @@
         /// <summary>
         /// Gets the is left.
         /// </summary>
-        /// <value>The is left.</_Value>
+        /// <value>The is left.</value>
         public override Boolean IsLeft
         {
             get { return false; }
@@ -44,7 +44,7 @@
         }
 
         /// <summary>
-        /// Gets the right value, <see cref="Data"/>.
+        /// Gets the right value, <see cref="_Data"/>.
         /// </summary>
         /// <returns>T.</returns>
         public override T GetRight()

@@ -27,7 +27,7 @@
             _scimServerConfiguration = scimServerConfiguration;
         }
 
-        public async Task<ScimGroup> CreateGroup(ScimGroup group)
+        public Task<ScimGroup> CreateGroup(ScimGroup group)
         {
             group.Id = Guid.NewGuid().ToString("N");
 
@@ -37,38 +37,39 @@
 
             _Groups.Add(group.Id, group);
 
-            return group;
+            return Task.FromResult(group);
         }
 
-        public async Task<ScimGroup> GetGroup(string groupId)
+        public Task<ScimGroup> GetGroup(string groupId)
+        {
+            return Task.FromResult(_Groups.ContainsKey(groupId) ? _Groups[groupId].Copy() : null);
+        }
+
+        public Task<ScimGroup> UpdateGroup(ScimGroup group)
+        {
+            if (_Groups.ContainsKey(group.Id))
+            {
+                group.Meta.LastModified = DateTime.UtcNow;
+                _Groups[group.Id] = group;
+
+                return Task.FromResult(group);
+            }
+
+            return Task.FromResult<ScimGroup>(null);
+        }
+
+        public Task DeleteGroup(string groupId)
         {
             if (_Groups.ContainsKey(groupId))
-                return _Groups[groupId].Copy();
+            {
+                var groupRecord = _Groups[groupId];
+                _Groups.Remove(groupId);
+            }
 
-            return null;
+            return Task.FromResult(true);
         }
 
-        public async Task<ScimGroup> UpdateGroup(ScimGroup group)
-        {
-            if (!_Groups.ContainsKey(group.Id))
-                return null;
-
-            group.Meta.LastModified = DateTime.UtcNow;
-            _Groups[group.Id] = group;
-
-            return group;
-        }
-
-        public async Task DeleteGroup(string groupId)
-        {
-            if (!_Groups.ContainsKey(groupId))
-                return;
-
-            var groupRecord = _Groups[groupId];
-            _Groups.Remove(groupId);
-        }
-
-        public async Task<IEnumerable<ScimGroup>> QueryGroups(ScimQueryOptions options)
+        public Task<IEnumerable<ScimGroup>> QueryGroups(ScimQueryOptions options)
         {
             var groups = _Groups.Values.AsEnumerable();
             if (options.Filter != null)
@@ -85,13 +86,13 @@
             if (options.Count > 0)
                 groups = groups.Take(options.Count);
 
-            return groups;
+            return Task.FromResult(groups);
         }
 
-        public async Task<IEnumerable<UserGroup>> GetGroupsUserBelongsTo(string userId)
+        public Task<IEnumerable<UserGroup>> GetGroupsUserBelongsTo(string userId)
         {
             // TODO: (CY) need to add indirect groups too
-            return _Groups
+            return Task.FromResult(_Groups
                 .Values
                 .Where(g => g.Members != null && g.Members.Any(m => m.Value.Equals(userId)))
                 .Select(group => new UserGroup
@@ -99,7 +100,7 @@
                     Value = group.Id,
                     Display = group.DisplayName,
                     Type = "direct"
-                });
+                }));
         }
 
         public Task<bool> GroupExists(string groupId)

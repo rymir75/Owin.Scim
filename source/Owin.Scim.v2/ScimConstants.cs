@@ -2,7 +2,7 @@
 {
     public class ScimConstantsV2 : ScimConstants
     {
-        public static class Schemas
+        public new static class Schemas
         {
             public const string User = @"urn:ietf:params:scim:schemas:core:2.0:User";
 
@@ -17,7 +17,7 @@
             public const string Schema = @"urn:ietf:params:scim:schemas:core:2.0:Schema";
         }
 
-        public static class Messages
+        public new static class Messages
         {
             public const string BulkRequest = @"urn:ietf:params:scim:api:messages:2.0:BulkRequest";
 
@@ -32,7 +32,7 @@
             public const string SearchRequest = @"urn:ietf:params:scim:api:messages:2.0:SearchRequest";
         }
 
-        public static class Defaults
+        public new static class Defaults
         {
             public const string URNPrefix = @"urn:";
 

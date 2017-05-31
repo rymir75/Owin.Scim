@@ -36,15 +36,17 @@
 
             // Uncomment any of the following method calls to see example Owin.Scim functionality.
 
-//            await ExecuteServiceProviderConfig(client);
+            // await ExecuteServiceProviderConfig(client);
 
-//            await ExecuteResourceTypes(client);
+            // await ExecuteResourceTypes(client);
 
-//            await ExecuteSchemas(client);
+            // await ExecuteSchemas(client);
 
-//            await ExecuteUser(client);
+            // await ExecuteUser(client);
 
-//            await ExecuteCustomResourceType(client);
+            // await ExecuteCustomResourceType(client);
+
+            await Task.FromResult(true);
         }
 
         private static async Task ExecuteSchemas(HttpClient client)

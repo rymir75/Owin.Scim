@@ -30,7 +30,7 @@
             _scimServerConfiguration = scimServerConfiguration;
         }
 
-        public async Task<ScimUser> CreateUser(ScimUser user)
+        public Task<ScimUser> CreateUser(ScimUser user)
         {
             user.Id = Guid.NewGuid().ToString("N");
 
@@ -40,7 +40,7 @@
 
             _Users.TryAdd(user.Id, user);
 
-            return user;
+            return Task.FromResult(user);
         }
 
         public async Task<ScimUser> GetUser(string userId)
@@ -58,26 +58,29 @@
             return user;
         }
 
-        public async Task<ScimUser> UpdateUser(ScimUser user)
+        public Task<ScimUser> UpdateUser(ScimUser user)
         {
-            if (!_Users.ContainsKey(user.Id))
-                return user;
+            if (_Users.ContainsKey(user.Id))
+            {
+                user.Meta.LastModified = DateTime.UtcNow;
+                _Users[user.Id] = user;
+            }
 
-            user.Meta.LastModified = DateTime.UtcNow;
-            _Users[user.Id] = user;
-
-            return user;
+            return Task.FromResult(user);
         }
 
-        public async Task DeleteUser(string userId)
+        public Task DeleteUser(string userId)
         {
-            if (!_Users.ContainsKey(userId)) return;
+            if (_Users.ContainsKey(userId))
+            {
+                ScimUser userRecord;
+                _Users.TryRemove(userId, out userRecord);
+            }
 
-            ScimUser userRecord;
-            _Users.TryRemove(userId, out userRecord);
+            return Task.FromResult(true);
         }
 
-        public async Task<IEnumerable<ScimUser>> QueryUsers(ScimQueryOptions options)
+        public Task<IEnumerable<ScimUser>> QueryUsers(ScimQueryOptions options)
         {
             var users = _Users.Values.AsEnumerable();
             if (options.Filter != null)
@@ -94,7 +97,7 @@
             if (options.Count > 0)
                 users = users.Take(options.Count);
 
-            return users;
+            return Task.FromResult(users);
         }
 
         public Task<bool> IsUserNameAvailable(string userName)
